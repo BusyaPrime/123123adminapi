@@ -1,0 +1,44 @@
+services:
+  php74:
+    build:
+      context: .
+      dockerfile: docker/php74/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    profiles: ["tools", "baseline"]
+
+  php83:
+    build:
+      context: .
+      dockerfile: docker/php83/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    profiles: ["tools", "target"]
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: casva_local
+      MYSQL_USER: casva
+      MYSQL_PASSWORD: casva
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "33060:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - mysql_local_data:/var/lib/mysql
+    profiles: ["infra"]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "63790:6379"
+    volumes:
+      - redis_local_data:/data
+    profiles: ["infra"]
+
+volumes:
+  mysql_local_data:
+  redis_local_data:

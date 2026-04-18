@@ -1,0 +1,18 @@
+@extends('admin.layout')
+
+@section('center_content')
+    <form action="{{ route('admin.companies.update', $company) }}" method="post" enctype="multipart/form-data" >
+        @csrf
+        @method('put')
+        @component('component.card', ['title' => 'Редактировать логистическую компанию / мерчант', 'title_class' => 'col-sm-12'])
+            @include('admin.companies._form')
+            @slot('bottom')
+                <div class="px-5 py-3">
+                <a href="{{ route('admin.companies.index') }}" class="btn btn-sm btn-danger float-left">@lang('admin.back')</a>
+                <button class="btn btn-sm btn-primary float-right">@lang('admin.save')</button>
+                <div class="clearfix"></div>
+                </div>
+            @endslot
+        @endcomponent
+    </form>
+@endsection

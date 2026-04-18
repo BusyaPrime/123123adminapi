@@ -1,0 +1,68 @@
+PHP / Composer baseline from source manifests
+===========================================
+
+composer.json
+-------------
+php: ^7.4.3
+laravel/framework: 5.8.*
+minimum-stability: dev
+
+require:
+- barryvdh/laravel-dompdf ^0.8.6
+- dimsav/laravel-translatable ^9.4
+- fideloper/proxy ^4.0
+- intervention/image ^2.7
+- jenssegers/agent ^2.6
+- maatwebsite/excel ^3.1
+- mcamara/laravel-localization ^1.3
+- predis/predis ^1.1
+- rap2hpoutre/laravel-log-viewer ^2.3
+- unisharp/laravel-filemanager ^1.9
+
+require-dev:
+- barryvdh/laravel-ide-helper ^2.6
+- beyondcode/laravel-dump-server ^1.0
+- doctrine/dbal ^2.9
+- filp/whoops ^2.0
+- fzaninotto/faker ^1.4
+- laravel/ui ^1.1
+- mockery/mockery ^1.0
+- nunomaduro/collision ^3.0
+- phpunit/phpunit ^7.5
+
+package.json
+------------
+devDependencies:
+- axios ^0.18
+- bootstrap ^4.1.0
+- cross-env ^5.1
+- jquery ^3.2
+- laravel-mix ^4.1.4
+- lodash ^4.17.5
+- popper.js ^1.12
+- resolve-url-loader ^2.3.1
+- sass ^1.15.2
+- sass-loader ^7.1.0
+- vue ^2.5.17
+- vue-template-compiler ^2.6.10
+
+dependencies:
+- laravel-echo ^1.6.1
+- pusher-js ^5.0.3
+- socket.io ^4.4.1
+- socket.io-client ^2.3.0
+
+Installed lock baseline
+-----------------------
+
+- Locked package count installed under PHP 7.4 container: 133
+- Runtime baseline: Laravel Framework 5.8.38
+- Dependency install mode: `composer install --no-scripts --prefer-dist`
+
+Immediate dependency findings:
+- `dimsav/laravel-translatable` is abandoned
+- `swiftmailer/swiftmailer` is abandoned
+- `symfony/debug` is abandoned
+- `doctrine/cache` is abandoned
+- `fzaninotto/faker` is abandoned
+- `phpunit/php-token-stream` is abandoned
