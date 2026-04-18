@@ -48,8 +48,12 @@ class TrackingFunnelAggregationService
             ->get()
             ->map(function ($row) {
                 $row->steps_data = $this->normalizeSteps($row->steps_data);
-                $row->platform = $row->platform ?: PlatformType::ANDROID;
-                $row->user_type = $row->user_type ?: UserType::ANONYMOUS;
+                $row->platform = in_array($row->platform, PlatformType::cases(), true)
+                    ? $row->platform
+                    : null;
+                $row->user_type = in_array($row->user_type, UserType::cases(), true)
+                    ? $row->user_type
+                    : ($row->user_id ? UserType::REGISTERED : UserType::ANONYMOUS);
 
                 return $row;
             });
@@ -350,6 +354,10 @@ class TrackingFunnelAggregationService
     protected function dropStageName($funnel)
     {
         $steps = TrackingOrderFunnelDefinition::steps();
+
+        if (!empty($funnel->abandoned_at_step_name)) {
+            return $funnel->abandoned_at_step_name;
+        }
 
         if ($funnel->outcome === TrackingOrderOutcome::COMPLETED) {
             return 'completed';

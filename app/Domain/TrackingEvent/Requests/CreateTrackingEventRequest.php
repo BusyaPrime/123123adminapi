@@ -3,6 +3,7 @@
 namespace App\Domain\TrackingEvent\Requests;
 
 
+use App\Services\Tracking\TrackingOrderFunnelDefinition;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateTrackingEventRequest extends FormRequest
@@ -33,5 +34,24 @@ class CreateTrackingEventRequest extends FormRequest
             'order_id' => 'nullable|numeric',
             'value' => 'nullable|numeric'
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $step = $this->input('funnel_step');
+            $stepName = $this->input('funnel_name');
+
+            if ($step === null || $stepName === null) {
+                return;
+            }
+
+            $stepMap = collect(TrackingOrderFunnelDefinition::steps())->keyBy('order');
+            $step = (int) $step;
+
+            if (isset($stepMap[$step]) && $stepMap[$step]['name'] !== $stepName) {
+                $validator->errors()->add('funnel_name', 'The funnel_name value does not match the provided funnel_step.');
+            }
+        });
     }
 }

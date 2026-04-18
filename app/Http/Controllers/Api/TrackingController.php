@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Domain\TrackingOrderFunnel\Models\TrackingOrderFunnel;
 use App\Domain\TrackingOrderFunnel\Requests\TrackingOrderFunnelStepRequest;
+use App\Domain\TrackingEvent\Requests\CreateTrackingEventRequest;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Domain\TrackingSession\Requests\TrackingSessionRequest;
@@ -98,7 +99,7 @@ class TrackingController extends Controller
     }
 
     public function trackEvent(
-        Request $request,
+        CreateTrackingEventRequest $request,
         UserActionTrackingService $service
     ) {
         try {
@@ -203,8 +204,7 @@ class TrackingController extends Controller
             $service->completeFunnel(
                 $funnel,
                 $request->input('order_id'),
-                $request->input('value'),
-                $request->except(['order_id'])
+                $request->input('value')
             );
 
             return response()->json(['status' => 'success']);

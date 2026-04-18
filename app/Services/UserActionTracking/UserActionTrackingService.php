@@ -5,10 +5,12 @@ namespace App\Services\UserActionTracking;
 use App\Constants\TrackingSessionStatus;
 use App\Constants\UserType;
 use App\Constants\TrackingOrderOutcome;
+use App\Constants\PlatformType;
 use App\Domain\TrackingSession\Models\TrackingSession;
 use App\Domain\TrackingOrderFunnel\Models\TrackingOrderFunnel;
 use App\Domain\Users\Models\User;
 use App\Domain\TrackingEvent\Models\TrackingEvent;
+use App\Services\Tracking\TrackingOrderFunnelDefinition;
 use DomainException;
 use App\Services\InfoByIpService;
 use Jenssegers\Agent\Agent;
@@ -34,6 +36,7 @@ class UserActionTrackingService {
     {
         $agent = new Agent();
         $agent->setUserAgent($userAgent);
+        $platform = $this->normalizePlatform($platform, $os, $userAgent);
 
         if($agent->isRobot()) {
             throw new DomainException('Robot detected');
@@ -51,50 +54,40 @@ class UserActionTrackingService {
         $lng = $ipInfo['lon'] ?? null;
         $timezone = $ipInfo['timezone'] ?? null;
         
-        $session = TrackingSession::firstOrCreate(
-            [
-                'ip_address' => $ipAddress,
-                'platform' => $platform,
-                // 'status' => TrackingSessionStatus::ACTIVE
-            ],
-            [
-                'user_id' => $userId,
-                'user_type' => $userId !== null ? UserType::REGISTERED : UserType::ANONYMOUS,
-                // 'platform' => $platform,
-                'app_version' => $appVersion,
-                // 'ip_address' => $ipAddress,
-                'user_agent' => $userAgent,
-                'browser' => $browser,
-                'browser_version' => $browserVersion,
-                'os' => $os,
-                'device_id' => $deviceId,
-                'device_model' => $deviceModel,
-                'device_type' => $this->detectDeviceType($agent),
-                'referrer_url' => $referrerUrl,
-                'utm_source' => $utmSource,
-                'utm_medium' => $utmMedium,
-                'utm_campaign' => $utmCampaign,
-                'country' => $country,
-                'country_code' => $countryCode,
-                'city' => $city,
-                'lat' => $lat,
-                'lng' => $lng,
-                'language' => $language,
-                'timezone' => $timezone,
-                'last_seen_at' => now(),
-            ]
-        );
+        $session = TrackingSession::create([
+            'user_id' => $userId,
+            'user_type' => $userId !== null ? UserType::REGISTERED : UserType::ANONYMOUS,
+            'platform' => $platform,
+            'app_version' => $appVersion,
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
+            'browser' => $browser,
+            'browser_version' => $browserVersion,
+            'os' => $os,
+            'device_id' => $deviceId,
+            'device_model' => $deviceModel,
+            'device_type' => $this->detectDeviceType($agent),
+            'referrer_url' => $referrerUrl,
+            'utm_source' => $utmSource,
+            'utm_medium' => $utmMedium,
+            'utm_campaign' => $utmCampaign,
+            'country' => $country,
+            'country_code' => $countryCode,
+            'city' => $city,
+            'lat' => $lat,
+            'lng' => $lng,
+            'language' => $language,
+            'timezone' => $timezone,
+            'status' => TrackingSessionStatus::ACTIVE,
+            'last_seen_at' => now(),
+        ]);
 
-        TrackingEvent::firstOrCreate(
-            [
-                'session_id' => $session->id,
-                'event_type' => $platform === 'web' ? TrackingEvent::TYPE_PAGE_VIEW : TrackingEvent::TYPE_APP_OPEN
-            ],
-            [
-                'user_id' => $userId,
-                'screen_name' => $screen
-            ]
-        );
+        TrackingEvent::create([
+            'session_id' => $session->id,
+            'event_type' => $platform === PlatformType::WEB ? TrackingEvent::TYPE_PAGE_VIEW : TrackingEvent::TYPE_APP_OPEN,
+            'user_id' => $userId,
+            'screen_name' => $screen,
+        ]);
 
         return $session;
     }
@@ -109,6 +102,8 @@ class UserActionTrackingService {
 
         $userId = $user->id;
         $session->user_id = $userId;
+        $session->user_type = UserType::REGISTERED;
+        $session->last_seen_at = now();
 
         TrackingEvent::create([
             'session_id' => $session->id,
@@ -134,7 +129,7 @@ class UserActionTrackingService {
             ]
         );
 
-        $session->fill([
+        $session->update([
             'status' => TrackingSessionStatus::COMPLETED,
             'ended_at' => now(),
             'last_seen_at' => now(),
@@ -144,16 +139,13 @@ class UserActionTrackingService {
 
     public function startOrderFunnel(TrackingSession $session)
     {
-        $funnel = TrackingOrderFunnel::firstOrCreate(
-            [
-                'session_id' => $session->id,
-                'outcome' => TrackingOrderOutcome::IN_PROGRESS
-            ],
-            [
-                'user_id' => $session->user_id,
-                'max_step_reached' => 1,
-            ]
-        );
+        $funnel = TrackingOrderFunnel::create([
+            'session_id' => $session->id,
+            'user_id' => $session->user_id,
+            'max_step_reached' => 1,
+            'total_steps' => count(TrackingOrderFunnelDefinition::steps()),
+            'outcome' => TrackingOrderOutcome::IN_PROGRESS,
+        ]);
 
         return $funnel->id;
     }
@@ -207,7 +199,7 @@ class UserActionTrackingService {
             'properties' => $stepData,
             'funnel_step' => $step,
             'funnel_name' => $stepName,
-            'value' => $stepData['changed_price'],
+            'value' => $stepData['changed_price'] ?? $stepData['calculated_price'] ?? null,
             'time_since_session_start' => now()->diffInSeconds($session->created_at)
         ]);
 
@@ -224,19 +216,42 @@ class UserActionTrackingService {
         }
 
         $session = $funnel->session;
+        $stepsData = $funnel->steps_data ?: [];
+        $completedAt = now();
+        $previousStep = isset($stepsData[3]) ? $stepsData[3] : null;
+        $timeSeconds = null;
+
+        if ($previousStep && isset($previousStep['completed_at'])) {
+            $timeSeconds = $completedAt->diffInSeconds(Carbon::parse($previousStep['completed_at']));
+        }
+
+        $stepsData[4] = [
+            'name' => 'completed',
+            'started_at' => $completedAt->toIso8601String(),
+            'completed_at' => $completedAt->toIso8601String(),
+            'time_seconds' => $timeSeconds,
+            'data' => [
+                'order_id' => $orderId,
+                'value' => $value,
+            ],
+        ];
 
         $funnel->update([
             'outcome' => TrackingOrderOutcome::COMPLETED,
             'order_id' => $orderId,
-            'ended_at' => now(),
-            'total_time_seconds' => now()->diffInSeconds($funnel->created_at)
+            'steps_data' => $stepsData,
+            'max_step_reached' => 4,
+            'ended_at' => $completedAt,
+            'total_time_seconds' => $completedAt->diffInSeconds($funnel->created_at)
         ]);
 
         $session->update([
             'order_id' => $orderId,
             'last_seen_at' => now(),
             'resulted_in_order' => true,
-            'ended_at' => now()
+            'status' => TrackingSessionStatus::COMPLETED,
+            'ended_at' => $completedAt,
+            'duration_seconds' => $completedAt->diffInSeconds($session->created_at)
         ]);
 
         TrackingEvent::create([
@@ -246,8 +261,8 @@ class UserActionTrackingService {
             'event_type' => TrackingEvent::TYPE_ORDER_CREATED,
             'screen_name' => 'calculator',
             'properties' => $funnel->steps_data,
-            'funnel_step' => $funnel->max_step_reached,
-            'funnel_name' => 'order_creation',
+            'funnel_step' => 4,
+            'funnel_name' => 'completed',
             'value' => $value,
             'time_since_session_start' => now()->diffInSeconds($session->created_at)
         ]);
@@ -259,19 +274,25 @@ class UserActionTrackingService {
         }
 
         $session = $funnel->session;
+        $pendingStep = $this->resolvePendingStep($funnel);
+        $abandonedAt = now();
 
         $funnel->update([
             'outcome' => TrackingOrderOutcome::ABANDONED,
             'order_id' => null,
-            'ended_at' => now(),
-            'total_time_seconds' => now()->diffInSeconds($funnel->created_at)
+            'abandoned_at_step_name' => $pendingStep['name'],
+            'ended_at' => $abandonedAt,
+            'abandoned_at' => $abandonedAt,
+            'total_time_seconds' => $abandonedAt->diffInSeconds($funnel->created_at)
         ]);
 
         $session->update([
             'order_id' => null,
             'last_seen_at' => now(),
             'resulted_in_order' => false,
-            'ended_at' => now()
+            'status' => TrackingSessionStatus::ABANDONED,
+            'ended_at' => $abandonedAt,
+            'duration_seconds' => $abandonedAt->diffInSeconds($session->created_at)
         ]);
 
         TrackingEvent::create([
@@ -281,8 +302,8 @@ class UserActionTrackingService {
             'event_type' => TrackingEvent::TYPE_ORDER_ABANDONED,
             'screen_name' => 'calculator',
             'properties' => $funnel->steps_data,
-            'funnel_step' => $funnel->max_step_reached,
-            'funnel_name' => 'order_creation',
+            'funnel_step' => $pendingStep['order'],
+            'funnel_name' => $pendingStep['name'],
             'value' => null,
             'time_since_session_start' => now()->diffInSeconds($session->created_at)
         ]);
@@ -304,12 +325,50 @@ class UserActionTrackingService {
             'event_type' => $eventType,
             'screen_name' => $screenName,
             'properties' => $properties,
-            'funnel_step' => $funnelName,
-            'funnel_name' => $funnelStep,
+            'funnel_step' => $funnelStep,
+            'funnel_name' => $funnelName,
             'order_id' => $orderId,
             'value' => $value,
             'time_since_session_start' => now()->diffInSeconds($session->created_at)
         ]);
+    }
+
+    private function normalizePlatform($platform, $os, $userAgent)
+    {
+        if (in_array($platform, PlatformType::cases(), true)) {
+            return $platform;
+        }
+
+        $os = mb_strtolower((string) $os);
+        $userAgent = mb_strtolower((string) $userAgent);
+
+        if (str_contains($os, 'android') || str_contains($userAgent, 'android')) {
+            return PlatformType::ANDROID;
+        }
+
+        if (str_contains($os, 'ios') || str_contains($userAgent, 'iphone') || str_contains($userAgent, 'ipad')) {
+            return PlatformType::IOS;
+        }
+
+        return PlatformType::WEB;
+    }
+
+    private function resolvePendingStep(TrackingOrderFunnel $funnel)
+    {
+        $steps = TrackingOrderFunnelDefinition::steps();
+        $stepsData = $funnel->steps_data ?: [];
+
+        foreach ($steps as $step) {
+            if ($step['order'] === 4) {
+                return $step;
+            }
+
+            if (empty($stepsData[$step['order']]['completed_at'])) {
+                return $step;
+            }
+        }
+
+        return end($steps);
     }
 
     private function detectDeviceType(Agent $agent)
