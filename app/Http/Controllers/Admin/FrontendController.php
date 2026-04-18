@@ -239,11 +239,11 @@ class FrontendController extends Controller
 
     private function getSettingsPath()
     {
-        return \Storage::path('public/frontend/settings.json');
+        return \Storage::disk('public')->path('frontend/settings.json');
     }
     private function getTranslateFilePath($lang)
     {
-        return \Storage::path("public/frontend/languages/$lang.json");
+        return \Storage::disk('public')->path("frontend/languages/$lang.json");
     }
     private function getTranslationContent($lang)
     {
