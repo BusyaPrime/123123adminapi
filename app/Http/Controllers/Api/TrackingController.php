@@ -56,7 +56,7 @@ class TrackingController extends Controller
                 )
             );
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -68,14 +68,14 @@ class TrackingController extends Controller
             $session = TrackingSession::where('session_token', $request->header('X-Session-Token', ''))->first();
 
             if (!$session instanceof TrackingSession) {
-                return response()->json(['message' => 'Session not found']);
+                return response()->json(['message' => 'Session not found'], 404);
             }
 
             $service->endSession($session, $request->input('screen'));
 
             return response()->json(['status' => 'ok']);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -87,14 +87,14 @@ class TrackingController extends Controller
             $session = TrackingSession::where('session_token', $request->header('X-Session-Token', ''))->first();
 
             if(!$session instanceof TrackingSession) {
-                return response()->json(['message' => 'Session not found']);
+                return response()->json(['message' => 'Session not found'], 404);
             }
 
             $service->identifySession($session, $request->input('authUser'));
 
             return response()->json(['status' => 'ok']);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 
@@ -106,7 +106,7 @@ class TrackingController extends Controller
             $session = TrackingSession::where('session_token', $request->header('X-Session-Token', ''))->first();
 
             if(!$session instanceof TrackingSession) {
-                return response()->json(['message' => 'Session not found']);
+                return response()->json(['message' => 'Session not found'], 404);
             }
 
             $eventType = $request->input('event_type');
@@ -130,7 +130,7 @@ class TrackingController extends Controller
 
             return response()->json(['status' => 'ok', 'event_id' => $event->id]);
         } catch (Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
     
@@ -142,14 +142,14 @@ class TrackingController extends Controller
             $session = TrackingSession::where('session_token', $request->header('X-Session-Token', ''))->first();
 
             if(!$session instanceof TrackingSession) {
-                return response()->json(['status' => 'error', 'message' => 'Session not found']);
+                return response()->json(['status' => 'error', 'message' => 'Session not found'], 404);
             }
 
             return response()->json([
                 'funnel_id' => $service->startOrderFunnel($session)
             ]);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
     
@@ -166,7 +166,7 @@ class TrackingController extends Controller
                         ->first();
 
             if(!$funnel instanceof TrackingOrderFunnel) {
-                return response()->json(['status' => 'error', 'message' => 'Order funnel not found']);
+                return response()->json(['status' => 'error', 'message' => 'Order funnel not found'], 404);
             }
 
             $service->saveOrderFunnelStep(
@@ -180,7 +180,7 @@ class TrackingController extends Controller
 
             return response()->json(['status' => 'success']);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
     
@@ -198,7 +198,7 @@ class TrackingController extends Controller
                         ->first();
 
             if(!$funnel instanceof TrackingOrderFunnel) {
-                return response()->json(['status' => 'error', 'message' => 'Order funnel not found']);
+                return response()->json(['status' => 'error', 'message' => 'Order funnel not found'], 404);
             }
 
             $service->completeFunnel(
@@ -209,7 +209,7 @@ class TrackingController extends Controller
 
             return response()->json(['status' => 'success']);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
     public function abandonOrderFunnel(
@@ -226,7 +226,7 @@ class TrackingController extends Controller
                         ->first();
 
             if(!$funnel instanceof TrackingOrderFunnel) {
-                return response()->json(['status' => 'error', 'message' => 'Order funnel not found']);
+                return response()->json(['status' => 'error', 'message' => 'Order funnel not found'], 404);
             }
 
             $service->abandonFunnel(
@@ -239,7 +239,7 @@ class TrackingController extends Controller
 
             return response()->json(['status' => 'success']);
         } catch(Exception $e) {
-            return response()->json(['message' => $e->getMessage()]);
+            return response()->json(['message' => $e->getMessage()], 500);
         }
     }
 }

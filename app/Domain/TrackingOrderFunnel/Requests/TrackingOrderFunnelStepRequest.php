@@ -33,12 +33,15 @@ class TrackingOrderFunnelStepRequest extends FormRequest
             'screen_name' => 'required|string|max:100',
             'from_address' => 'nullable|string|max:255',
             'to_address' => 'nullable|string|max:255',
-            'calculated_price' => 'nullable|string',
+            'calculated_price' => 'nullable|numeric',
+            'changed_price' => 'nullable|numeric',
+            'has_changed_price' => 'nullable|boolean',
             'car_type' => 'nullable|string|max:255',
             'car_type_id' => 'nullable|numeric',
             'cargo_type' => 'nullable|string|max:255',
             'cargo_type_id' => 'nullable|numeric',
-            'cargo_weight' => 'nullable|numeric'
+            'cargo_weight' => 'nullable|numeric',
+            'weight' => 'nullable|numeric',
             // 'max_step_reached' => 'nullable|numeric'
         ];
     }

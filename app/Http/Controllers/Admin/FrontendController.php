@@ -38,19 +38,34 @@ class FrontendController extends Controller
                 'uz' => $this->getTranslationContent('uz'),
                 'en' => $this->getTranslationContent('en'),
             ];
+
             foreach($settings as $key => $setting){
-                if(isset($lang['ru'][$key]) && isset($lang['uz'][$key]) || isset($lang['en'][$key])){
+                if (!is_array($setting)) {
+                    continue;
+                }
+
+                if (isset($lang['ru'][$key], $lang['uz'][$key], $lang['en'][$key])) {
                     $settings[$key]['translations']['ru'] = $lang['ru'][$key];
                     $settings[$key]['translations']['uz'] = $lang['uz'][$key];
                     $settings[$key]['translations']['en'] = $lang['en'][$key];
                 }
             }
-            $settings['metaInformations']['ru'] = $lang['ru']['metaInformations'];
-            $settings['metaInformations']['uz'] = $lang['uz']['metaInformations'];
-            $settings['metaInformations']['en'] = $lang['en']['metaInformations'];
+
+            $metaInformations = [];
+            foreach (['ru', 'uz', 'en'] as $locale) {
+                if (isset($lang[$locale]['metaInformations'])) {
+                    $metaInformations[$locale] = $lang[$locale]['metaInformations'];
+                }
+            }
+
+            if (!empty($metaInformations)) {
+                $settings['metaInformations'] = $metaInformations;
+            }
+
             return response()->json($settings, 200);
         } catch (\Throwable $th) {
-            return response()->json(['message' => $th], 500);
+            report($th);
+            return response()->json(['message' => $th->getMessage()], 500);
         }
     }
 
@@ -73,7 +88,8 @@ class FrontendController extends Controller
             
             return response()->json($this->getTranslationContent($lang), 200);
         } catch (\Throwable $th) {
-            return response()->json(['message' => $th], 500);
+            report($th);
+            return response()->json(['message' => $th->getMessage()], 500);
         }
     }
 
@@ -212,7 +228,13 @@ class FrontendController extends Controller
     private function getSettings()
     {
         $path = $this->getSettingsPath();
-        return file_exists($path) ? json_decode(file_get_contents($path), true) : null;
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        $decoded = json_decode(file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function getSettingsPath()
@@ -226,7 +248,13 @@ class FrontendController extends Controller
     private function getTranslationContent($lang)
     {
         $path = $this->getTranslateFilePath($lang);
-        return file_exists($path) ? json_decode(file_get_contents($path), true) : null;
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        $decoded = json_decode(file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
     private function updateTranslation($lang, $data)
     {

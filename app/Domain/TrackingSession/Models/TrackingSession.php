@@ -10,18 +10,22 @@ use Illuminate\Support\Str;
 
 class TrackingSession extends Model {
     protected $fillable = [
+        'session_token',
         'user_id', 'user_type',
         'platform', 'app_version',
         'ip_address', 'user_agent', 'browser', 'browser_version',
         'os', 'device_id', 'device_model', 'device_type',
         'referrer_url', 'utm_source', 'utm_medium', 'utm_campaign',
         'country', 'country_code', 'city', 'lat', 'lng',
-        'language', 'timezone', 'last_seen_at'
+        'language', 'timezone',
+        'status', 'resulted_in_order', 'order_id',
+        'ended_at', 'duration_seconds', 'last_seen_at',
     ];
 
     protected $casts = [
         'resulted_in_order' => 'boolean',
         'ended_at'          => 'datetime',
+        'last_seen_at'      => 'datetime',
         'lat'               => 'float',
         'lng'               => 'float',
     ];

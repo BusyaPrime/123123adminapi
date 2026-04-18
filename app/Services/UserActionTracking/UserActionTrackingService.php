@@ -111,7 +111,7 @@ class UserActionTrackingService {
             'screen_name' => 'home',
             'event_type' => TrackingEvent::TYPE_LOGIN_SUCCESS,
             'properties' => json_encode([ 'was_anonymous_before' => true ]),
-            'time_since_session_start' => now()->diffInSeconds($session->created_at)
+            'time_since_session_start' => $this->elapsedSeconds($session->created_at),
         ]);
 
         $session->save();
@@ -125,7 +125,7 @@ class UserActionTrackingService {
                 'session_id' => $session->id,
                 'event_type' => TrackingEvent::TYPE_APP_CLOSE,
                 'screen_name' => $screen,
-                'time_since_session_start' => now()->diffInSeconds($session->created_at)
+                'time_since_session_start' => $this->elapsedSeconds($session->created_at),
             ]
         );
 
@@ -133,7 +133,7 @@ class UserActionTrackingService {
             'status' => TrackingSessionStatus::COMPLETED,
             'ended_at' => now(),
             'last_seen_at' => now(),
-            'duration_seconds' => now()->diffInSeconds($session->created_at)
+            'duration_seconds' => $this->elapsedSeconds($session->created_at),
         ]);
     }
 
@@ -166,7 +166,7 @@ class UserActionTrackingService {
 
         if ($previousStep && isset($previousStep['completed_at'])) {
             $prevTime    = Carbon::parse($previousStep['completed_at']);
-            $timeSeconds = now()->diffInSeconds($prevTime);
+            $timeSeconds = $this->elapsedSeconds($prevTime);
         }
 
         $stepsData[$step] = [
@@ -187,7 +187,8 @@ class UserActionTrackingService {
         if (isset($stepData['calculated_price']))       $updateData['calculated_price']     = $stepData['calculated_price'] ?? null;
         if (isset($stepData['cargo_type_id']))          $updateData['cargo_type_id']        = $stepData['cargo_type_id'] ?? null;
         if (isset($stepData['car_type_id']))            $updateData['car_type_id']          = $stepData['car_type_id'] ?? null;
-        if (isset($stepData['weight']))                 $updateData['cargo_weight']         = $stepData['weight'] ?? null;
+        if (isset($stepData['cargo_weight']))          $updateData['cargo_weight']         = $stepData['cargo_weight'] ?? null;
+        if (isset($stepData['weight']))                $updateData['cargo_weight']         = $stepData['weight'] ?? null;
         if (isset($stepData['has_changed_price']))      $updateData['has_changed_price']    = $stepData['has_changed_price'] ?? false;
         if (isset($stepData['changed_price']))          $updateData['changed_price']        = $stepData['changed_price'] ?? null;
 
@@ -200,7 +201,7 @@ class UserActionTrackingService {
             'funnel_step' => $step,
             'funnel_name' => $stepName,
             'value' => $stepData['changed_price'] ?? $stepData['calculated_price'] ?? null,
-            'time_since_session_start' => now()->diffInSeconds($session->created_at)
+            'time_since_session_start' => $this->elapsedSeconds($session->created_at),
         ]);
 
         $funnel->update($updateData);
@@ -222,7 +223,7 @@ class UserActionTrackingService {
         $timeSeconds = null;
 
         if ($previousStep && isset($previousStep['completed_at'])) {
-            $timeSeconds = $completedAt->diffInSeconds(Carbon::parse($previousStep['completed_at']));
+            $timeSeconds = $this->elapsedSeconds(Carbon::parse($previousStep['completed_at']), $completedAt);
         }
 
         $stepsData[4] = [
@@ -242,7 +243,7 @@ class UserActionTrackingService {
             'steps_data' => $stepsData,
             'max_step_reached' => 4,
             'ended_at' => $completedAt,
-            'total_time_seconds' => $completedAt->diffInSeconds($funnel->created_at)
+            'total_time_seconds' => $this->elapsedSeconds($funnel->created_at, $completedAt),
         ]);
 
         $session->update([
@@ -251,7 +252,7 @@ class UserActionTrackingService {
             'resulted_in_order' => true,
             'status' => TrackingSessionStatus::COMPLETED,
             'ended_at' => $completedAt,
-            'duration_seconds' => $completedAt->diffInSeconds($session->created_at)
+            'duration_seconds' => $this->elapsedSeconds($session->created_at, $completedAt),
         ]);
 
         TrackingEvent::create([
@@ -264,7 +265,7 @@ class UserActionTrackingService {
             'funnel_step' => 4,
             'funnel_name' => 'completed',
             'value' => $value,
-            'time_since_session_start' => now()->diffInSeconds($session->created_at)
+            'time_since_session_start' => $this->elapsedSeconds($session->created_at, $completedAt),
         ]);
     }
 
@@ -283,7 +284,7 @@ class UserActionTrackingService {
             'abandoned_at_step_name' => $pendingStep['name'],
             'ended_at' => $abandonedAt,
             'abandoned_at' => $abandonedAt,
-            'total_time_seconds' => $abandonedAt->diffInSeconds($funnel->created_at)
+            'total_time_seconds' => $this->elapsedSeconds($funnel->created_at, $abandonedAt),
         ]);
 
         $session->update([
@@ -292,7 +293,7 @@ class UserActionTrackingService {
             'resulted_in_order' => false,
             'status' => TrackingSessionStatus::ABANDONED,
             'ended_at' => $abandonedAt,
-            'duration_seconds' => $abandonedAt->diffInSeconds($session->created_at)
+            'duration_seconds' => $this->elapsedSeconds($session->created_at, $abandonedAt),
         ]);
 
         TrackingEvent::create([
@@ -305,7 +306,7 @@ class UserActionTrackingService {
             'funnel_step' => $pendingStep['order'],
             'funnel_name' => $pendingStep['name'],
             'value' => null,
-            'time_since_session_start' => now()->diffInSeconds($session->created_at)
+            'time_since_session_start' => $this->elapsedSeconds($session->created_at, $abandonedAt),
         ]);
     }
 
@@ -329,7 +330,7 @@ class UserActionTrackingService {
             'funnel_name' => $funnelName,
             'order_id' => $orderId,
             'value' => $value,
-            'time_since_session_start' => now()->diffInSeconds($session->created_at)
+            'time_since_session_start' => $this->elapsedSeconds($session->created_at),
         ]);
     }
 
@@ -380,5 +381,17 @@ class UserActionTrackingService {
         }
 
         return 'mobile';
+    }
+
+    private function elapsedSeconds($from, $to = null)
+    {
+        if ($from === null) {
+            return 0;
+        }
+
+        $from = $from instanceof Carbon ? $from : Carbon::parse($from);
+        $to = $to instanceof Carbon ? $to : ($to ? Carbon::parse($to) : now());
+
+        return (int) round($from->diffInSeconds($to, true));
     }
 }
