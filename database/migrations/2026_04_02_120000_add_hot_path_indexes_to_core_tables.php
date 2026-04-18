@@ -152,7 +152,14 @@ return new class extends Migration
             $indexes = [];
 
             foreach ($rows as $row) {
-                $indexes[$row->index_name][] = $row->column_name;
+                $indexName = $row->index_name ?? $row->INDEX_NAME ?? null;
+                $columnName = $row->column_name ?? $row->COLUMN_NAME ?? null;
+
+                if (!$indexName || !$columnName) {
+                    continue;
+                }
+
+                $indexes[$indexName][] = $columnName;
             }
 
             return $indexes;
